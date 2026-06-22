@@ -1191,6 +1191,15 @@ const fmtSGD = n => `SGD ${parseFloat(n||0).toLocaleString('en-SG',{minimumFract
 const fmtDate = s => { const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-SG',{day:'2-digit',month:'short',year:'numeric'}); };
 const toISO   = d => { const o=new Date(d); return `${o.getFullYear()}-${String(o.getMonth()+1).padStart(2,'0')}-${String(o.getDate()).padStart(2,'0')}`; };
 const todayISO = () => toISO(new Date());
+// Normalise any date value (string, Date object, ISO timestamp) to YYYY-MM-DD
+function isoDate(v) {
+  if (!v) return '';
+  const s = String(v);
+  const short = s.match(/^(\d{4}-\d{2}-\d{2})/); // already YYYY-MM-DD[...]
+  if (short) return short[1];
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? s.slice(0,10) : toISO(d);
+}
 
 function weekNum(d) {
   const dt = new Date(d); dt.setHours(0,0,0,0);
@@ -1651,9 +1660,11 @@ async function refreshDashboard() {
   }
   if (!inv) inv = buildMockInventory();
 
-  // coerce numeric fields
+  // coerce fields — normalise date to YYYY-MM-DD regardless of what
+  // Sheets / Apps Script returns (Date objects serialise as ISO timestamps)
   sales = sales.map(r => ({
     ...r,
+    date:          isoDate(r.date),
     total_revenue: parseFloat(r.total_revenue)||0,
     quantity_sold: parseInt(r.quantity_sold)||0,
     unit_price:    parseFloat(r.unit_price)||0,
@@ -1661,6 +1672,7 @@ async function refreshDashboard() {
   }));
   inv = inv.map(r => ({
     ...r,
+    date:           isoDate(r.date),
     waste_cost_sgd: parseFloat(r.waste_cost_sgd)||0,
     batch_produced: parseInt(r.batch_produced)||0,
     quantity_sold:  parseInt(r.quantity_sold)||0,
